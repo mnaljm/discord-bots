@@ -174,7 +174,7 @@ class TicketControlView(discord.ui.View):
             self.ticket_id = ticket['id']
         
         # Check permissions - only creator or admins can close
-        if interaction.user.id != ticket['creator_id'] and not interaction.user.guild_permissions.manage_channels:
+        if interaction.user.id != ticket['creator_id'] and not (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_channels):
             await interaction.response.send_message("❌ You don't have permission to close this ticket!", ephemeral=True)
             return
         
@@ -191,7 +191,7 @@ class TicketControlView(discord.ui.View):
         bot = interaction.client
         
         # Check if user has manage_channels permission (staff)
-        if not interaction.user.guild_permissions.manage_channels:
+        if not (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_channels):
             await interaction.response.send_message("❌ Only staff members can assign tickets!", ephemeral=True)
             return
         
@@ -216,7 +216,7 @@ class TicketControlView(discord.ui.View):
     @discord.ui.button(label="Add User", style=discord.ButtonStyle.secondary, emoji="➕", custom_id="add_user")
     async def add_user(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Check permissions
-        if not interaction.user.guild_permissions.manage_channels:
+        if not (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_channels):
             await interaction.response.send_message("❌ Only staff members can add users to tickets!", ephemeral=True)
             return
         

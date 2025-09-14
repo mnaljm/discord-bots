@@ -226,8 +226,8 @@ async def create_ticket(interaction: discord.Interaction):
 async def ticket_stats(interaction: discord.Interaction):
     """Show ticket statistics"""
     
-    # Check if user has manage_channels permission
-    if not interaction.user.guild_permissions.manage_channels:
+    # Check if user is admin or has manage_channels permission
+    if not (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_channels):
         await interaction.response.send_message("❌ You don't have permission to view ticket statistics!", ephemeral=True)
         return
     
@@ -255,8 +255,8 @@ async def ticket_stats(interaction: discord.Interaction):
 async def list_open_tickets(interaction: discord.Interaction):
     """List all open tickets"""
     
-    # Check if user has manage_channels permission
-    if not interaction.user.guild_permissions.manage_channels:
+    # Check if user is admin or has manage_channels permission
+    if not (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_channels):
         await interaction.response.send_message("❌ Only staff members can view all open tickets!", ephemeral=True)
         return
     
@@ -343,6 +343,11 @@ async def setup_ticket_panel(interaction: discord.Interaction, channel: discord.
         return
     
     target_channel = channel or interaction.channel
+    
+    # Ensure target_channel is a text channel
+    if not isinstance(target_channel, discord.TextChannel):
+        await interaction.response.send_message("❌ Invalid channel! Please specify a text channel.", ephemeral=True)
+        return
     
     ticket_types = await bot.db.get_ticket_types()
     
