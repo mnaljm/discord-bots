@@ -31,28 +31,28 @@ class BotManager:
                 'name': 'Bug Report',
                 'description': 'Report bugs and technical issues',
                 'sla_hours': 24,
-                'color': 0xff0000,
+                'color': 0xFF0000,
                 'emoji': '🐛'
             },
             {
                 'name': 'Feature Request',
                 'description': 'Request new features or improvements',
                 'sla_hours': 72,
-                'color': 0x00ff00,
+                'color': 0x00FF00,
                 'emoji': '💡'
             },
             {
                 'name': 'General Support',
                 'description': 'General questions and support',
                 'sla_hours': 48,
-                'color': 0x0099ff,
+                'color': 0x0099FF,
                 'emoji': '❓'
             },
             {
                 'name': 'Account Issues',
                 'description': 'Problems with your account',
                 'sla_hours': 12,
-                'color': 0xff9900,
+                'color': 0xFF9900,
                 'emoji': '👤'
             },
             {

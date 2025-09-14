@@ -20,7 +20,7 @@ class DatabaseManager:
                     name TEXT UNIQUE NOT NULL,
                     description TEXT,
                     sla_hours INTEGER NOT NULL DEFAULT 24,
-                    color INTEGER DEFAULT 3447003,
+                    color INTEGER DEFAULT 3447000,
                     emoji TEXT DEFAULT '🎫',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -65,7 +65,7 @@ class DatabaseManager:
             logger.info("Database initialized successfully")
     
     async def create_ticket_type(self, name: str, description: str, sla_hours: int, 
-                                color: int = 3447003, emoji: str = '🎫') -> bool:
+                                color: int = 3447000, emoji: str = '🎫') -> bool:
         """Create a new ticket type"""
         try:
             async with aiosqlite.connect(self.db_path) as db:

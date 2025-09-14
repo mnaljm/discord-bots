@@ -68,7 +68,7 @@ class TicketBot(commands.Bot):
                 embed = discord.Embed(
                     title="🎫 Create Support Ticket",
                     description="Please select the type of ticket you want to create:",
-                    color=0x3447003
+                    color=0x344700
                 )
                 
                 await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
@@ -145,7 +145,7 @@ async def create_ticket_type(interaction: discord.Interaction,
                            name: str, 
                            description: str, 
                            sla_hours: int,
-                           color: str = "3447003",
+                           color: str = "344700",
                            emoji: str = "🎫"):
     """Create a new ticket type"""
     
@@ -157,8 +157,11 @@ async def create_ticket_type(interaction: discord.Interaction,
     try:
         # Convert color hex to int
         color_int = int(color, 16) if isinstance(color, str) else color
+        # Ensure color is within Discord's valid range
+        if color_int > 0xFFFFFF:
+            color_int = 0x344700  # Default blue-green
     except ValueError:
-        color_int = 3447003  # Default blue
+        color_int = 0x344700  # Default blue-green
     
     success = await bot.db.create_ticket_type(name, description, sla_hours, color_int, emoji)
     
@@ -190,7 +193,7 @@ async def list_ticket_types(interaction: discord.Interaction):
     embed = discord.Embed(
         title="🎫 Available Ticket Types",
         description="Here are all the available ticket types:",
-        color=0x3447003
+        color=0x344700
     )
     
     for ticket_type in ticket_types:
@@ -217,7 +220,7 @@ async def create_ticket(interaction: discord.Interaction):
     embed = discord.Embed(
         title="🎫 Create Support Ticket",
         description="Please select the type of ticket you want to create:",
-        color=0x3447003
+        color=0x344700
     )
     
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
@@ -235,7 +238,7 @@ async def ticket_stats(interaction: discord.Interaction):
     
     embed = discord.Embed(
         title="📊 Ticket Statistics",
-        color=0x3447003,
+        color=0x344700,
         timestamp=discord.utils.utcnow()
     )
     
@@ -274,7 +277,7 @@ async def list_open_tickets(interaction: discord.Interaction):
     embed = discord.Embed(
         title="🎫 Open Tickets",
         description=f"Found {len(tickets)} open ticket(s):",
-        color=0x3447003
+        color=0x344700
     )
     
     for ticket in tickets[:10]:  # Limit to 10 tickets to avoid embed limits
@@ -366,7 +369,7 @@ async def setup_ticket_panel(interaction: discord.Interaction, channel: discord.
             "4️⃣ Wait for our team to respond\n\n"
             "Our team will respond according to the SLA for your ticket type."
         ),
-        color=0x3447003
+        color=0x344700
     )
     
     embed.add_field(
@@ -395,7 +398,7 @@ async def setup_ticket_panel(interaction: discord.Interaction, channel: discord.
             embed = discord.Embed(
                 title="🎫 Create Support Ticket",
                 description="Please select the type of ticket you want to create:",
-                color=0x3447003
+                color=0x344700
             )
             
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
