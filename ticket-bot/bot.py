@@ -49,8 +49,33 @@ class TicketBot(commands.Bot):
         # Initialize database
         await self.db.initialize()
         
-        # Add persistent views
-        self.add_view(TicketControlView(0))  # Placeholder ticket_id for persistent view
+        # Define persistent views
+        class TicketPanelView(discord.ui.View):
+            def __init__(self):
+                super().__init__(timeout=None)
+            
+            @discord.ui.button(label="Create Ticket", style=discord.ButtonStyle.primary, emoji="🎫", custom_id="create_ticket_panel")
+            async def create_ticket_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                bot = interaction.client
+                ticket_types = await bot.db.get_ticket_types()
+                
+                if not ticket_types:
+                    await interaction.response.send_message("❌ No ticket types available! Contact an admin.", ephemeral=True)
+                    return
+                
+                view = TicketTypeView(ticket_types)
+                
+                embed = discord.Embed(
+                    title="🎫 Create Support Ticket",
+                    description="Please select the type of ticket you want to create:",
+                    color=0x3447003
+                )
+                
+                await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        
+        # Add persistent views for existing tickets
+        self.add_view(TicketControlView())  # For ticket control buttons
+        self.add_view(TicketPanelView())    # For ticket creation panels
         
         # Start SLA monitoring task
         self.sla_monitor.start()
@@ -347,12 +372,12 @@ async def setup_ticket_panel(interaction: discord.Interaction, channel: discord.
     
     embed.set_footer(text="Click the button below to get started!")
     
-    # Create a simple view with just a create ticket button
+    # Use the same persistent view class
     class TicketPanelView(discord.ui.View):
         def __init__(self):
             super().__init__(timeout=None)
         
-        @discord.ui.button(label="Create Ticket", style=discord.ButtonStyle.primary, emoji="🎫")
+        @discord.ui.button(label="Create Ticket", style=discord.ButtonStyle.primary, emoji="🎫", custom_id="create_ticket_panel")
         async def create_ticket_button(self, interaction: discord.Interaction, button: discord.ui.Button):
             ticket_types = await bot.db.get_ticket_types()
             
@@ -371,7 +396,7 @@ async def setup_ticket_panel(interaction: discord.Interaction, channel: discord.
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
     
     view = TicketPanelView()
-    bot.add_view(view)  # Make it persistent
+    # Note: Don't add to bot again as it's already persistent
     
     await target_channel.send(embed=embed, view=view)
     

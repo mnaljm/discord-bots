@@ -156,11 +156,11 @@ class TicketCreationModal(discord.ui.Modal):
             )
 
 class TicketControlView(discord.ui.View):
-    def __init__(self, ticket_id: int):
+    def __init__(self, ticket_id: Optional[int] = None):
         super().__init__(timeout=None)  # Persistent view
         self.ticket_id = ticket_id
     
-    @discord.ui.button(label="Close Ticket", style=discord.ButtonStyle.danger, emoji="🔒")
+    @discord.ui.button(label="Close Ticket", style=discord.ButtonStyle.danger, emoji="🔒", custom_id="close_ticket")
     async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
         bot = interaction.client
         ticket = await bot.db.get_ticket_by_channel(interaction.channel.id)
@@ -168,6 +168,10 @@ class TicketControlView(discord.ui.View):
         if not ticket:
             await interaction.response.send_message("❌ Ticket not found!", ephemeral=True)
             return
+        
+        # Use ticket ID from database if not set in view
+        if self.ticket_id is None:
+            self.ticket_id = ticket['id']
         
         # Check permissions - only creator or admins can close
         if interaction.user.id != ticket['creator_id'] and not interaction.user.guild_permissions.manage_channels:
@@ -182,7 +186,7 @@ class TicketControlView(discord.ui.View):
             ephemeral=True
         )
     
-    @discord.ui.button(label="Assign to Me", style=discord.ButtonStyle.secondary, emoji="👤")
+    @discord.ui.button(label="Assign to Me", style=discord.ButtonStyle.secondary, emoji="👤", custom_id="assign_to_me")
     async def assign_to_me(self, interaction: discord.Interaction, button: discord.ui.Button):
         bot = interaction.client
         
@@ -190,6 +194,14 @@ class TicketControlView(discord.ui.View):
         if not interaction.user.guild_permissions.manage_channels:
             await interaction.response.send_message("❌ Only staff members can assign tickets!", ephemeral=True)
             return
+        
+        # Get ticket from database if ticket_id is not set
+        if self.ticket_id is None:
+            ticket = await bot.db.get_ticket_by_channel(interaction.channel.id)
+            if not ticket:
+                await interaction.response.send_message("❌ Ticket not found!", ephemeral=True)
+                return
+            self.ticket_id = ticket['id']
         
         await bot.db.assign_ticket(self.ticket_id, interaction.user.id, interaction.user.id)
         
@@ -201,7 +213,7 @@ class TicketControlView(discord.ui.View):
         
         await interaction.response.send_message(embed=embed)
     
-    @discord.ui.button(label="Add User", style=discord.ButtonStyle.secondary, emoji="➕")
+    @discord.ui.button(label="Add User", style=discord.ButtonStyle.secondary, emoji="➕", custom_id="add_user")
     async def add_user(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Check permissions
         if not interaction.user.guild_permissions.manage_channels:
@@ -212,13 +224,21 @@ class TicketControlView(discord.ui.View):
         await interaction.response.send_modal(modal)
 
 class ConfirmCloseView(discord.ui.View):
-    def __init__(self, ticket_id: int):
+    def __init__(self, ticket_id: Optional[int] = None):
         super().__init__(timeout=60)
         self.ticket_id = ticket_id
     
-    @discord.ui.button(label="Yes, Close", style=discord.ButtonStyle.danger, emoji="✅")
+    @discord.ui.button(label="Yes, Close", style=discord.ButtonStyle.danger, emoji="✅", custom_id="confirm_close")
     async def confirm_close(self, interaction: discord.Interaction, button: discord.ui.Button):
         bot = interaction.client
+        
+        # Get ticket from database if ticket_id is not set
+        if self.ticket_id is None:
+            ticket = await bot.db.get_ticket_by_channel(interaction.channel.id)
+            if not ticket:
+                await interaction.response.send_message("❌ Ticket not found!", ephemeral=True)
+                return
+            self.ticket_id = ticket['id']
         
         # Update ticket status
         await bot.db.update_ticket_status(self.ticket_id, 'closed', interaction.user.id)
@@ -257,7 +277,7 @@ class ConfirmCloseView(discord.ui.View):
         except Exception as e:
             logger.error(f"Error archiving ticket channel: {e}")
     
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary, emoji="❌")
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary, emoji="❌", custom_id="cancel_close")
     async def cancel_close(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.edit_message(content="❌ Ticket closure cancelled.", embed=None, view=None)
 
