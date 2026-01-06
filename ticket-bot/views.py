@@ -101,6 +101,21 @@ class TicketCreationModal(discord.ui.Modal):
                 interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
                 guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True, manage_channels=True)
             }
+
+            # If ticket type specifies an access role, try to grant that role access as well
+            access_role_id = ticket_type.get('access_role_id') if ticket_type else None
+            if access_role_id:
+                try:
+                    role = guild.get_role(int(access_role_id))
+                except Exception:
+                    role = None
+
+                if not role:
+                    # Fallback to role name 'Moderator'
+                    role = discord.utils.get(guild.roles, name='Moderator')
+
+                if role:
+                    overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
             
             channel = await guild.create_text_channel(
                 channel_name, 
@@ -131,7 +146,12 @@ class TicketCreationModal(discord.ui.Modal):
             embed.add_field(name="🏷️ Type", value=ticket_type['name'], inline=True)
             embed.add_field(name="⚡ Priority", value=priority.title(), inline=True)
             embed.add_field(name="📅 Created", value=f"<t:{int(time.time())}:F>", inline=True)
-            embed.add_field(name="⏰ SLA Deadline", value=f"<t:{int((time.time() + ticket_type['sla_hours'] * 3600))}:R>", inline=True)
+            # SLA display: if sla_hours <= 0 then treat as no SLA
+            sla_hours = ticket_type.get('sla_hours', 24) if ticket_type else 24
+            if sla_hours and sla_hours > 0:
+                embed.add_field(name="⏰ SLA Deadline", value=f"<t:{int((time.time() + sla_hours * 3600))}:R>", inline=True)
+            else:
+                embed.add_field(name="⏰ SLA Deadline", value="No SLA", inline=True)
             embed.set_footer(text=f"Ticket ID: {ticket_id}")
             
             # Create control buttons
@@ -189,19 +209,40 @@ class TicketControlView(discord.ui.View):
     @discord.ui.button(label="Assign to Me", style=discord.ButtonStyle.secondary, emoji="👤", custom_id="assign_to_me")
     async def assign_to_me(self, interaction: discord.Interaction, button: discord.ui.Button):
         bot = interaction.client
-        
-        # Check if user has manage_channels permission (staff)
-        if not (interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_channels):
-            await interaction.response.send_message("❌ Only staff members can assign tickets!", ephemeral=True)
-            return
-        
-        # Get ticket from database if ticket_id is not set
+        # Check permissions: allow admins/manage_channels or users with the access role (or role named 'Moderator')
+        is_staff = interaction.user.guild_permissions.administrator or interaction.user.guild_permissions.manage_channels
+
+        # Determine the ticket and its configured access role
+        ticket = None
         if self.ticket_id is None:
             ticket = await bot.db.get_ticket_by_channel(interaction.channel.id)
             if not ticket:
                 await interaction.response.send_message("❌ Ticket not found!", ephemeral=True)
                 return
             self.ticket_id = ticket['id']
+        else:
+            ticket = await bot.db.get_ticket_by_channel(interaction.channel.id)
+
+        ticket_type = None
+        if ticket:
+            ticket_type = await bot.db.get_ticket_type(ticket['type_id'])
+
+        has_access_role = False
+        access_role_id = ticket_type.get('access_role_id') if ticket_type else None
+        if access_role_id:
+            role = interaction.guild.get_role(int(access_role_id)) if interaction.guild else None
+            if role and role in interaction.user.roles:
+                has_access_role = True
+
+        # Fallback: check for a role named 'Moderator'
+        if not has_access_role:
+            mod_role = discord.utils.get(interaction.guild.roles, name='Moderator')
+            if mod_role and mod_role in interaction.user.roles:
+                has_access_role = True
+
+        if not (is_staff or has_access_role):
+            await interaction.response.send_message("❌ Only staff members or configured moderators can assign tickets!", ephemeral=True)
+            return
         
         await bot.db.assign_ticket(self.ticket_id, interaction.user.id, interaction.user.id)
         

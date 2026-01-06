@@ -22,6 +22,7 @@ class DatabaseManager:
                     sla_hours INTEGER NOT NULL DEFAULT 24,
                     color INTEGER DEFAULT 3447000,
                     emoji TEXT DEFAULT '🎫',
+                    access_role_id TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
@@ -61,18 +62,25 @@ class DatabaseManager:
                 )
             """)
             
+            # Ensure new columns exist for older DBs
+            async with db.execute("PRAGMA table_info(ticket_types)") as cursor:
+                cols = await cursor.fetchall()
+                col_names = [c[1] for c in cols]
+                if 'access_role_id' not in col_names:
+                    await db.execute("ALTER TABLE ticket_types ADD COLUMN access_role_id TEXT")
+
             await db.commit()
             logger.info("Database initialized successfully")
     
     async def create_ticket_type(self, name: str, description: str, sla_hours: int, 
-                                color: int = 3447000, emoji: str = '🎫') -> bool:
+                                color: int = 3447000, emoji: str = '🎫', access_role_id: str = None) -> bool:
         """Create a new ticket type"""
         try:
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute("""
-                    INSERT INTO ticket_types (name, description, sla_hours, color, emoji)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (name, description, sla_hours, color, emoji))
+                    INSERT INTO ticket_types (name, description, sla_hours, color, emoji, access_role_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (name, description, sla_hours, color, emoji, access_role_id))
                 await db.commit()
                 logger.info(f"Created ticket type: {name}")
                 return True
@@ -104,7 +112,11 @@ class DatabaseManager:
         """Create a new ticket"""
         # Get SLA hours for the ticket type
         ticket_type = await self.get_ticket_type(type_id)
-        sla_deadline = datetime.now() + timedelta(hours=ticket_type['sla_hours'])
+        sla_hours = ticket_type.get('sla_hours', 24) if ticket_type else 24
+        if sla_hours and sla_hours > 0:
+            sla_deadline = datetime.now() + timedelta(hours=sla_hours)
+        else:
+            sla_deadline = None
         
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute("""

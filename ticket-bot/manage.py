@@ -62,6 +62,15 @@ class BotManager:
                 'color': 0x990000,
                 'emoji': '🚨'
             }
+            ,
+            {
+                'name': 'Access to IRL',
+                'description': 'Request access to IRL events or channels',
+                'sla_hours': 0,
+                'color': 0x6A5ACD,
+                'emoji': '🛂',
+                'access_role_id': '1395560393325154447'
+            }
         ]
         
         for ticket_type in default_types:
