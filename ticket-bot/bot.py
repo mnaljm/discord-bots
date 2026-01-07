@@ -413,6 +413,71 @@ async def setup_ticket_panel(interaction: discord.Interaction, channel: discord.
     else:
         await interaction.response.send_message("✅ Ticket panel setup in this channel!", ephemeral=True)
 
+
+@bot.tree.command(name="wipe_archive", description="Wipe the Ticket Archive category channels and tickets older than X days (Admin only)")
+async def wipe_archive(interaction: discord.Interaction, days: int = 30):
+    """Delete channels in the Ticket Archive category and remove their tickets if older than X days."""
+    # Admin check
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ Only administrators can run this command.", ephemeral=True)
+        return
+
+    guild = interaction.guild
+    if not guild:
+        await interaction.response.send_message("❌ This command must be run in a guild.", ephemeral=True)
+        return
+
+    archive_category = discord.utils.get(guild.categories, name="📁 Ticket Archive")
+    if not archive_category:
+        await interaction.response.send_message("❌ Ticket Archive category not found.", ephemeral=True)
+        return
+
+    cutoff = datetime.now() - timedelta(days=days)
+    deleted_channels = 0
+    deleted_tickets = 0
+
+    await interaction.response.send_message(f"🧹 Wiping archive channels older than {days} day(s)...", ephemeral=True)
+
+    for channel in list(archive_category.text_channels):
+        try:
+            ticket = await bot.db.get_ticket_by_channel_any(channel.id)
+            if not ticket:
+                # No ticket linked; skip
+                continue
+
+            closed_at = ticket.get('closed_at')
+            if not closed_at:
+                # Ticket not closed; skip
+                continue
+
+            try:
+                closed_dt = datetime.fromisoformat(closed_at)
+            except Exception:
+                # Try parsing common sqlite format
+                try:
+                    closed_dt = datetime.strptime(closed_at, "%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    continue
+
+            if closed_dt <= cutoff:
+                # Delete channel and ticket
+                try:
+                    await channel.delete(reason=f"Archive cleanup by {interaction.user}")
+                    deleted_channels += 1
+                except Exception:
+                    pass
+
+                try:
+                    await bot.db.delete_ticket(ticket['id'])
+                    deleted_tickets += 1
+                except Exception:
+                    pass
+
+        except Exception as e:
+            logger.error(f"Error processing channel {channel.id}: {e}")
+
+    await interaction.followup.send(f"✅ Archive wipe complete. Deleted {deleted_channels} channel(s) and {deleted_tickets} ticket(s).", ephemeral=True)
+
 # Error handler
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):

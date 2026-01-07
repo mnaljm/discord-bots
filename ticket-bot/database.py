@@ -149,6 +149,21 @@ class DatabaseManager:
                     columns = [description[0] for description in cursor.description]
                     return dict(zip(columns, row))
                 return None
+
+    async def get_ticket_by_channel_any(self, channel_id: int) -> Optional[Dict]:
+        """Get ticket by channel ID regardless of status"""
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("""
+                SELECT t.*, tt.name as type_name, tt.emoji, tt.color
+                FROM tickets t
+                JOIN ticket_types tt ON t.type_id = tt.id
+                WHERE t.channel_id = ?
+            """, (channel_id,)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    columns = [description[0] for description in cursor.description]
+                    return dict(zip(columns, row))
+                return None
     
     async def get_ticket_by_number(self, ticket_number: str) -> Optional[Dict]:
         """Get ticket by ticket number"""
@@ -282,5 +297,13 @@ class DatabaseManager:
                 return False
             
             await db.execute("DELETE FROM ticket_types WHERE id = ?", (type_id,))
+            await db.commit()
+            return True
+
+    async def delete_ticket(self, ticket_id: int) -> bool:
+        """Delete a ticket and its messages"""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("DELETE FROM ticket_messages WHERE ticket_id = ?", (ticket_id,))
+            await db.execute("DELETE FROM tickets WHERE id = ?", (ticket_id,))
             await db.commit()
             return True
